@@ -1,17 +1,45 @@
-# Backend - Contact API (Hidrorural)
+# Constructora Hidrorural — Backend API de Contacto
 
-Breve guía para dejar operativo el envío de correos desde la sección **Cotización** de la web.
+Servidor Node.js/Express que gestiona el envío de correos del formulario de cotización del sitio web de Constructora Hidrorural.
 
-## Resumen
+## Descripcion / Objetivo
 
-- Servidor: Node.js + Express
-- Envío de email: `nodemailer` usando SMTP (actualmente Gmail App Password en `.env`)
-- Endpoint: `POST /api/contact` (JSON)
-- Protecciones: honeypot (`hp`) y rate-limit
+Microservicio backend que recibe solicitudes de cotización desde el frontend, las valida y las envía por correo electrónico via SMTP (Gmail App Password), con múltiples capas de protección contra spam y abuso.
 
-## Variables de entorno (archivo `.env`)
+## Tecnologias y herramientas
 
-Crear `backend/server/.env` con las siguientes variables (no subir a VCS):
+- Node.js LTS
+- Express
+- Nodemailer — envío de correos via SMTP
+- express-rate-limit — límite de 10 solicitudes por minuto por IP
+- helmet — cabeceras de seguridad HTTP
+- cors — restringido al origen del frontend via `.env`
+- dotenv — gestión de credenciales SMTP sin exponerlas en el código
+- Git / GitHub para control de versiones
+
+## Funcionalidades principales
+
+- **Endpoint `POST /api/contact`:** recibe `nombre`, `correo`, `telefono` y `mensaje`, valida los campos requeridos y envía el correo HTML al destinatario configurado.
+- **Proteccion anti-spam (honeypot):** campo oculto `hp` que, si viene relleno, descarta silenciosamente la solicitud — defensa efectiva contra bots.
+- **Rate limiting:** máximo 10 requests por minuto por IP para evitar abuso del endpoint.
+- **Seguridad de cabeceras:** `helmet` activa CSP, X-Frame-Options, HSTS y otras cabeceras de seguridad HTTP.
+- **Escaping HTML:** todos los campos del usuario se escapan antes de incluirse en el correo, previniendo inyección de HTML/XSS.
+- **CORS restrictivo:** solo acepta peticiones del origen definido en `FRONTEND_ORIGIN`.
+
+## Rol
+
+Proyecto individual: diseño e implementación completa del servidor, endpoint, validaciones, capas de seguridad y configuración segura de credenciales.
+
+## Resultado / Impacto
+
+- Formulario de cotización funcional en producción, recibiendo solicitudes reales de clientes de Constructora Hidrorural.
+- 5 capas de seguridad implementadas: helmet, CORS, rate-limit, honeypot y escaping HTML.
+- Credenciales SMTP 100% fuera del código fuente, gestionadas con dotenv.
+- `.env` protegido por `.gitignore` — nunca expuesto en historial de git.
+
+## Variables de entorno
+
+Crear `.env` en la raíz (ver `.env.example` como plantilla):
 
 ```
 SMTP_HOST=smtp.gmail.com
@@ -23,69 +51,30 @@ FROM_EMAIL="Hidrorural <tu.cuenta@gmail.com>"
 TO_EMAIL=contacto@hidrorural.com
 FRONTEND_ORIGIN=http://localhost:5173
 PORT=4000
-
-# Opcionales: copiar a otros destinatarios
-CC_EMAIL=otra@dominio.com
-BCC_EMAIL=oculto@dominio.com
 ```
 
-Notas:
+`SMTP_PASS` debe ser un App Password de Google (Cuenta Google → Seguridad → Contraseñas de aplicación). Nunca poner contraseñas reales en el repositorio.
 
-- `SMTP_PASS` debe ser un App Password de Google (sin espacios). Nunca pongas contraseñas reales en el repositorio.
-- Para múltiples direcciones separa con comas (ej. `a@x.com,b@y.com`) — `nodemailer` acepta la cadena con comas.
-
-## Pasos para generar App Password en Gmail
-
-1. Accedé a tu cuenta Google (la que usás en `SMTP_USER`).
-2. Activá la Verificación en dos pasos (2-Step Verification) si no está habilitada: Account → Security → 2-Step Verification.
-3. En Account → Security → App passwords: crear una nueva contraseña de aplicación.
-   - Seleccioná `Mail` como app y `Other` o el dispositivo que prefieras, dale un nombre (p.e. `hidrorural-server`).
-4. Google mostrará una contraseña de 16 caracteres agrupada con espacios; copiála y pegala en `.env` sin espacios, por ejemplo:
-   - si Google muestra `abcd efgh ijkl mnop`, en `.env` usar `SMTP_PASS=abcdefghijklmnop`.
-
-## Ejecutar servidor en local
+## Instalacion y ejecucion
 
 ```bash
-cd backend/server
 npm install
+cp .env.example .env   # completar con valores reales
 node server.js
 ```
 
-La salida debe mostrar: `SMTP transporter OK` y `Contact server listening on 4000`.
+Salida esperada: `SMTP transporter OK` y `Contact server listening on 4000`.
 
-## Endpoint y ejemplo de prueba (curl)
-
-Envía un POST JSON a `/api/contact` con los campos requeridos.
+## Prueba del endpoint
 
 ```bash
-curl -i -X POST http://localhost:4000/api/contact \
+curl -X POST http://localhost:4000/api/contact \
   -H "Content-Type: application/json" \
-  -d '{"nombre":"Prueba","correo":"test@example.com","telefono":"+56912345678","mensaje":"Mensaje de prueba","hp":""}'
+  -d '{"nombre":"Test","correo":"test@ejemplo.com","telefono":"+56912345678","mensaje":"Consulta de prueba","hp":""}'
 ```
 
-Respuesta esperada: `{"ok":true}` y en la consola del servidor `Mail sent:` con `info.accepted` mostrando los destinatarios.
+Respuesta esperada: `{"ok":true}`
 
-## Notas sobre recepción y forwarding
+## Repositorio
 
-- Si usás un forwarder (p.e. `eforward*.registrar-servers.com`) el correo puede ser reenviado a una cuenta externa. Revisá el panel del registrador para logs y configuración de forwarding.
-- En Gmail, si el email llega a la pestaña "Todos" y no genera notificaciones, creá un filtro por asunto/remitente y aplicá una etiqueta + activar notificaciones por etiqueta en la app móvil.
-
-## CC / BCC
-
-- Puedes añadir `CC_EMAIL` o `BCC_EMAIL` en el `.env`. El servidor lee esas variables y las pasa a `nodemailer`.
-- Para más robustez, en `server.js` se pueden convertir estas variables en arrays (`split(',').map(s=>s.trim())`) si querés validar múltiples direcciones.
-
-## Producción y buenas prácticas
-
-- No poner `.env` en el repositorio; usar secretos del proveedor (Heroku, Vercel, Docker secrets, etc.).
-- Configurar SPF/DKIM/DMARC si vas a enviar desde un dominio propio (no obligatorio si se usa Gmail SMTP, pero recomendado para evitar filtros si cambias a un SMTP del dominio).
-- Monitorizar errores y agregar alertas (Sentry o similar) para fallos en el envío.
-
-## Qué hacer si hay problemas
-
-- Revisá logs del servidor (la ruta `Mail sent:` y las variables `info.accepted` / `info.rejected` / `info.response`).
-- Probar cambiando temporalmente `TO_EMAIL` a una cuenta que controles para aislar envío vs recepción.
-
----
-
-Generado automáticamente como ayuda-memoria. Si querés, puedo añadir un script de prueba (`test-send.sh`) o convertir las direcciones CC/BCC a lista en `server.js`.
+- GitHub: https://github.com/Javiermll/contructora-hidrorural-backend
