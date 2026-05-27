@@ -26,21 +26,6 @@ Campos: `nombre`, `correo`, `telefono`, `mensaje`. Incluye honeypot anti-spam (`
 
 ---
 
-## Variables de entorno
-
-```bash
-# .env (ver .env.example)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=tu.cuenta@gmail.com
-SMTP_PASS=TU_APP_PASSWORD
-SMTP_SECURE=false
-FROM_EMAIL="Hidrorural <tu.cuenta@gmail.com>"
-TO_EMAIL=contacto@hidrorural.com
-FRONTEND_ORIGIN=https://www.hidrorural.com
-PORT=4000
-```
-
 ## Desarrollo local
 
 ```bash
